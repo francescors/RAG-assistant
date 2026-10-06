@@ -1,0 +1,6 @@
+fastapi>=0.110,<1
+uvicorn[standard]>=0.29,<1
+scikit-learn>=1.4,<2
+numpy>=1.26
+anthropic>=0.40
+pydantic>=2.6,<3

@@ -1,0 +1,12 @@
+[
+  {"question": "Combien coûte l'offre Pro ?", "expected_source": "offres.md", "keywords": ["9"]},
+  {"question": "Quel espace de stockage est offert avec la formule gratuite ?", "expected_source": "offres.md", "keywords": ["5 Go"]},
+  {"question": "Les données sont-elles chiffrées ?", "expected_source": "securite.md", "keywords": ["AES-256"]},
+  {"question": "Où sont hébergés les serveurs ?", "expected_source": "securite.md", "keywords": ["Francfort"]},
+  {"question": "Combien de temps garde-t-on un fichier supprimé ?", "expected_source": "securite.md", "keywords": ["30 jours"]},
+  {"question": "Quel est le délai de réponse du support pour l'offre Équipe ?", "expected_source": "support.md", "keywords": ["4 h"]},
+  {"question": "Combien de temps le lien de réinitialisation du mot de passe est-il valable ?", "expected_source": "support.md", "keywords": ["1 heure"]},
+  {"question": "Puis-je me faire rembourser après une résiliation ?", "expected_source": "support.md", "keywords": ["14 jours"]},
+  {"question": "Quelle est la capitale de l'Australie ?", "expected_source": null, "keywords": []},
+  {"question": "Qui a gagné la dernière Coupe du monde de football ?", "expected_source": null, "keywords": []}
+]
