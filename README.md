@@ -1,3 +1,4 @@
+  ![CI](https://github.com/francescors/rag-assistant/actions/workflows/ci.yml/badge.svg)
 # RAG Assistant
 
 Assistant de questions-réponses sur des documents, exposé via une API REST.
