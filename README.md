@@ -3,7 +3,7 @@
 
 Assistant de questions-réponses sur des documents, exposé via une API REST.
 Il retrouve les passages pertinents (RAG), génère une réponse avec un LLM (Claude)
-et **cite ses sources**. Le projet inclut tests, évaluation, Docker et CI.
+et cite ses sources. Le projet inclut tests, évaluation, Docker et CI.
 
 > Les documents d'exemple (`data/docs/`) décrivent une entreprise fictive, NimbusDrive.
 > Remplace-les par tes propres fichiers `.md` / `.txt` pour l'utiliser sur autre chose.
