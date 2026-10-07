@@ -29,7 +29,7 @@ def generate_answer(question: str, hits: list[Hit]) -> tuple[str, str]:
 
     api_key = config.anthropic_api_key()
     if not api_key:
-        # Mode sans clé : on renvoie le meilleur passage. Utile pour démo,
+        # Mode sans clé : on renvoie le meilleur passage. Utile pour la démo,
         # les tests et la CI, sans appel réseau ni coût.
         best = hits[0]
         return f"{best.chunk.text} [{best.chunk.source}]", "extractive"

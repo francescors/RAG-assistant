@@ -25,6 +25,12 @@ class Hit:
     score: float
 
 
+def top_hits(chunks: list[Chunk], scores: np.ndarray, k: int, min_score: float) -> list[Hit]:
+    """Garde les k meilleurs scores supérieurs ou égaux au seuil."""
+    best = np.argsort(scores)[::-1][:k]
+    return [Hit(chunks[i], float(scores[i])) for i in best if scores[i] >= min_score]
+
+
 class Retriever:
     def __init__(self, chunks: list[Chunk], min_score: float = 0.1):
         if not chunks:
@@ -39,14 +45,21 @@ class Retriever:
         )
         self.matrix = self.vectorizer.fit_transform([c.text for c in chunks])
 
-    def search(self, query: str, k: int = 3) -> list[Hit]:
+    def search(self, query: str, k: int = 3, min_score: float | None = None) -> list[Hit]:
         """Retourne au plus k passages, triés par score décroissant."""
         query_vec = self.vectorizer.transform([query])
         # Les vecteurs TF-IDF sont normalisés : le produit scalaire = cosinus.
         scores = (self.matrix @ query_vec.T).toarray().ravel()
-        best = np.argsort(scores)[::-1][:k]
-        return [
-            Hit(self.chunks[i], float(scores[i]))
-            for i in best
-            if scores[i] >= self.min_score
-        ]
+        threshold = self.min_score if min_score is None else min_score
+        return top_hits(self.chunks, scores, k, threshold)
+
+
+def build_retriever(chunks: list[Chunk], kind: str = "tfidf", min_score: float | None = None):
+    """Construit le retriever demandé. L'import des embeddings est paresseux (PyTorch est lourd)."""
+    if kind == "tfidf":
+        return Retriever(chunks, min_score=0.1 if min_score is None else min_score)
+    if kind == "embeddings":
+        from app.embedding_retriever import EmbeddingRetriever
+
+        return EmbeddingRetriever(chunks, min_score=0.15 if min_score is None else min_score)
+    raise ValueError(f"Retriever inconnu : {kind!r} (attendu : 'tfidf' ou 'embeddings')")

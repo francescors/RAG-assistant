@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app import config
 from app.ingest import load_chunks
 from app.llm import generate_answer
-from app.retriever import Retriever
+from app.retriever import build_retriever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rag")
@@ -19,13 +19,11 @@ logger = logging.getLogger("rag")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    chunks = load_chunks(
-        config.docs_dir(), 
-        config.chunk_size(), 
-        config.chunk_overlap()
-)
-    app.state.retriever = Retriever(chunks, min_score=config.min_score())
-    logger.info("Index construit : %d chunks", len(chunks))
+    chunks = load_chunks(config.docs_dir(), config.chunk_size(), config.chunk_overlap())
+    kind = config.retriever_kind()
+    app.state.retriever_kind = kind
+    app.state.retriever = build_retriever(chunks, kind, config.min_score(kind))
+    logger.info("Index construit : %d chunks (retriever=%s)", len(chunks), kind)
     yield
 
 
@@ -53,7 +51,11 @@ class AskResponse(BaseModel):
 
 @app.get("/health")
 def health(request: Request) -> dict:
-    return {"status": "ok", "chunks": len(request.app.state.retriever.chunks)}
+    return {
+        "status": "ok",
+        "retriever": request.app.state.retriever_kind,
+        "chunks": len(request.app.state.retriever.chunks),
+    }
 
 
 @app.post("/ask", response_model=AskResponse)

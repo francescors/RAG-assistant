@@ -11,7 +11,7 @@ et cite ses sources. Le projet inclut tests, évaluation, Docker et CI.
 ## Architecture
 
 ```
-question ──► FastAPI (/ask) ──► Retriever (TF-IDF, top-k) ──► LLM (Claude) ──► réponse + sources
+question ──► FastAPI (/ask) ──► Retriever (TF-IDF ou embeddings, top-k) ──► LLM (Claude) ──► réponse + sources
                                       ▲
               data/docs/*.md ─► découpage en chunks (au démarrage)
 ```
@@ -19,7 +19,8 @@ question ──► FastAPI (/ask) ──► Retriever (TF-IDF, top-k) ──► 
 | Fichier | Rôle |
 |---|---|
 | `app/ingest.py` | Lecture des documents, découpage en chunks avec chevauchement |
-| `app/retriever.py` | Index TF-IDF, similarité cosinus, seuil de score minimal |
+| `app/retriever.py` | Index TF-IDF, similarité cosinus, seuil de score minimal, fabrique `build_retriever` |
+| `app/embedding_retriever.py` | Recherche sémantique (fastembed, modèle multilingue ONNX) |
 | `app/llm.py` | Prompt, appel à l'API Anthropic, mode sans clé (extractif) |
 | `app/main.py` | API : `POST /ask`, `GET /health`, validation, gestion d'erreurs, logs |
 | `eval/run_eval.py` | Évaluation sur un jeu de questions (hit@k, MRR, abstention, exactitude) |
@@ -62,6 +63,28 @@ L'évaluation mesure : **hit@k** (la bonne source est-elle retrouvée ?), **MRR*
 La CI échoue si les seuils ne sont pas atteints : une régression de qualité est donc détectée
 comme une régression de code.
 
+## Deux modes de recherche : TF-IDF ou embeddings
+
+`RETRIEVER=tfidf` (défaut en local) compare les **mots** : instantané, sans modèle, mais il rate les
+synonymes. `RETRIEVER=embeddings` compare le **sens** avec le modèle multilingue
+`paraphrase-multilingual-MiniLM-L12-v2` via [fastembed](https://github.com/qdrant/fastembed)
+(ONNX, sans PyTorch) ; le modèle (~220 Mo) est téléchargé au premier lancement.
+
+```bash
+python -m eval.run_eval --compare                       # compare les deux
+python -m eval.run_eval --retriever embeddings --sweep  # aide à choisir le seuil de score
+RETRIEVER=embeddings uvicorn app.main:app
+```
+
+Résultats sur `eval/questions.json` (17 questions, dont 3 hors sujet) :
+
+| Retriever | hit@1 | hit@3 | MRR (k=3) | abstention |
+|---|---|---|---|---|
+| TF-IDF (seuil 0,10) | 86 % | 93 % | 0,89 | 100 % |
+| Embeddings (seuil 0,15) | 86 % | 100 % | 0,93 | 100 % |
+
+Le jeu ne compte que 14 questions répondables : l'écart de hit@3 correspond à une seule question, et le seuil a été choisi sur ce même jeu. Ces chiffres montrent une tendance, pas une preuve. Étape suivante : un corpus plus large et plus de questions reformulées.
+
 ## Docker
 
 ```bash
@@ -76,8 +99,9 @@ docker run -p 8000:8000 --env-file .env rag-assistant
 
 ## Choix techniques
 
-- **TF-IDF plutôt que des embeddings** : simple, rapide, sans modèle à télécharger, déterministe
-  (donc testable en CI). Limite : ne comprend pas les synonymes.
+- **TF-IDF et embeddings, au choix** : TF-IDF est simple et déterministe ; les embeddings
+  comprennent les synonymes. fastembed plutôt que sentence-transformers : pas de PyTorch,
+  donc une image Docker et une CI bien plus légères.
 - **Mode sans clé** : permet la démo, les tests et la CI sans coût ni secret.
 - **Prompt défensif** : le contexte est balisé et traité comme une donnée (anti prompt injection),
   et le modèle doit refuser de répondre hors du contexte.
@@ -86,8 +110,7 @@ docker run -p 8000:8000 --env-file .env rag-assistant
 
 ## Pistes d'amélioration
 
-- Embeddings (ex. `sentence-transformers`) + base vectorielle (FAISS, Chroma, pgvector), puis
-  comparaison hit@k / MRR avec TF-IDF grâce au jeu d'évaluation existant.
+- Base vectorielle (FAISS, Chroma, pgvector) quand le corpus grandit.
 - Recherche hybride (TF-IDF + embeddings) et reranking.
 - Jeu d'évaluation plus grand, évaluation de la fidélité (le LLM invente-t-il ?).
 - Streaming des réponses, cache, limitation de débit, authentification.

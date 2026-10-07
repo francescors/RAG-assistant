@@ -18,9 +18,24 @@ def chunk_overlap() -> int:
     return int(os.getenv("CHUNK_OVERLAP", "60"))
 
 
-def min_score() -> float:
-    """Score de similarité minimal : en dessous, on considère qu'il n'y a pas de contexte."""
-    return float(os.getenv("MIN_SCORE", "0.1"))
+def retriever_kind() -> str:
+    """'tfidf' (mots-clés) ou 'embeddings' (sens des phrases)."""
+    return os.getenv("RETRIEVER", "tfidf").lower()
+
+
+def embedding_model() -> str:
+    return os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+
+# Les scores TF-IDF et embeddings n'ont pas la même échelle : seuils par défaut distincts.
+DEFAULT_MIN_SCORE = {"tfidf": 0.1, "embeddings": 0.15}
+
+
+def min_score(kind: str | None = None) -> float:
+    """Score minimal : en dessous, on considère qu'il n'y a pas de contexte pertinent."""
+    if os.getenv("MIN_SCORE"):
+        return float(os.environ["MIN_SCORE"])
+    return DEFAULT_MIN_SCORE.get(kind or retriever_kind(), 0.1)
 
 
 def llm_model() -> str:
