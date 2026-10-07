@@ -3,9 +3,11 @@
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import anthropic
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app import config
@@ -29,6 +31,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="RAG Assistant", version="1.0.0", lifespan=lifespan)
 
+STATIC_DIR = Path(__file__).parent / "static"
+
 
 class AskRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -47,6 +51,12 @@ class AskResponse(BaseModel):
     mode: str
     sources: list[Source]
     latency_ms: int
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    """Interface web minimale."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")

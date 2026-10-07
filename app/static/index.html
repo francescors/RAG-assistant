@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG Assistant</title>
+  <style>
+    :root { --bg:#f6f7f9; --card:#fff; --text:#1c2330; --muted:#667085; --accent:#1b58b0; --border:#dfe3ea; --ok:#127a4b; --warn:#a15c07; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0f141b; --card:#18202b; --text:#e8ecf2; --muted:#9aa5b5; --accent:#6aa3f5; --border:#2a3545; --ok:#4cc58b; --warn:#e5a94a; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 24px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+    form { display:flex; gap:8px; }
+    input[type=text] { flex:1; padding:12px; font-size:1rem; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); }
+    button { padding:12px 18px; font-size:1rem; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .chip { background:none; color:var(--accent); border:1px solid var(--border); padding:6px 10px; font-size:.85rem; border-radius:999px; }
+    .meta { display:flex; gap:12px; color:var(--muted); font-size:.85rem; margin-top:12px; }
+    .badge { font-weight:600; }
+    .badge.llm { color:var(--ok); } .badge.extractive, .badge.no_context { color:var(--warn); }
+    .answer { white-space: pre-wrap; margin:0; }
+    .source { border-top:1px solid var(--border); padding-top:10px; margin-top:10px; font-size:.9rem; }
+    .source b { color:var(--accent); } .source small { color:var(--muted); }
+    .error { color:#c0362c; }
+    [hidden] { display:none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>RAG Assistant</h1>
+  <p class="sub">Pose une question : la réponse est générée à partir des documents indexés, avec ses sources.</p>
+
+  <div class="card">
+    <form id="form">
+      <input id="q" type="text" placeholder="Ex. : Combien coûte l'offre Pro ?" maxlength="500" required autofocus>
+      <button id="btn" type="submit">Demander</button>
+    </form>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="card" id="result" hidden>
+    <p class="answer" id="answer"></p>
+    <div class="meta"><span>Mode : <span class="badge" id="mode"></span></span><span id="latency"></span></div>
+    <div id="sources"></div>
+  </div>
+  <p class="error" id="error" hidden></p>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const examples = ["Combien coûte l'offre Pro ?", "Comment annuler mon abonnement ?", "Dans quel pays sont stockées mes données ?", "Quelle est la capitale de l'Australie ?"];
+
+  examples.forEach((text) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = text;
+    b.onclick = () => { $("q").value = text; $("form").requestSubmit(); };
+    $("chips").appendChild(b);
+  });
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const question = $("q").value.trim();
+    if (question.length < 3) return;
+    $("btn").disabled = true; $("error").hidden = true;
+    try {
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      if (res.status === 422) throw new Error("Question invalide (3 à 500 caractères).");
+      if (res.status === 502) throw new Error("Le service LLM est momentanément indisponible.");
+      if (!res.ok) throw new Error("Erreur " + res.status);
+      render(await res.json());
+    } catch (err) {
+      $("result").hidden = true;
+      $("error").textContent = err.message; $("error").hidden = false;
+    } finally { $("btn").disabled = false; }
+  });
+
+  // textContent partout (jamais innerHTML) : le texte vient d'un LLM et de documents non fiables.
+  function render(data) {
+    $("answer").textContent = data.answer;
+    $("mode").textContent = data.mode; $("mode").className = "badge " + data.mode;
+    $("latency").textContent = data.latency_ms + " ms";
+    $("sources").replaceChildren(...data.sources.map((s) => {
+      const div = document.createElement("div"); div.className = "source";
+      const name = document.createElement("b"); name.textContent = s.source;
+      const score = document.createElement("small"); score.textContent = "  score " + s.score;
+      const snippet = document.createElement("div"); snippet.textContent = s.snippet;
+      div.append(name, score, snippet); return div;
+    }));
+    $("result").hidden = false;
+  }
+</script>
+</body>
+</html>

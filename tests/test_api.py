@@ -12,6 +12,13 @@ def client(monkeypatch):
         yield c
 
 
+def test_index_page(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "RAG Assistant" in r.text
+
+
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
