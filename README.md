@@ -32,7 +32,7 @@ question ──► FastAPI (/ask) ──► Retriever (TF-IDF ou embeddings, top
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-cp .env.example .env        # puis renseigne ANTHROPIC_API_KEY (optionnel)
+cp .env.example .env        # ANTHROPIC_API_KEY (optionnel)
 export $(grep -v '^#' .env | xargs)
 
 uvicorn app.main:app --reload
